@@ -1,12 +1,20 @@
 import React, { useState } from "react";
-import { Box, VStack, Heading, Button } from "@chakra-ui/react";
+import {
+  Box,
+  VStack,
+  Heading,
+  Button,
+  Input,
+  Text,
+  Textarea,
+} from "@chakra-ui/react";
+import { Toaster, toaster } from "@/components/ui/toaster";
 import "./App.css";
 
-// React/TypeScript 示例
 const callDashScope = async (prompt: string) => {
   try {
     const response = await fetch(
-      "https://qwen-rag-pipeline.pages.dev/api/dashscope",
+      `${process.env.API_URL}/api/qwen`,
       {
         method: "POST",
         headers: {
@@ -29,30 +37,82 @@ const callDashScope = async (prompt: string) => {
 };
 
 function App() {
-  const [count, setCount] = useState(0);
+  const [prompt, setPrompt] = useState("");
+  const [result, setResult] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  React.useEffect(() => {
-    async function fetchData() {
-      // 使用示例
-      try {
-        const result = await callDashScope("CnTable 出现数据重复行怎么办?");
-        console.log(result.text);
-      } catch (error) {
-        console.error("Error:", error);
-      }
+  const handleSubmit = async () => {
+    if (!prompt.trim()) {
+      toaster.create({
+        title: "请输入内容",
+        status: "warning",
+        duration: 2000,
+        isClosable: true,
+      });
+      return;
     }
-    fetchData();
-  }, []);
+
+    setIsLoading(true);
+    try {
+      const response = await callDashScope(prompt);
+      setResult(response.text);
+    } catch (error) {
+      toaster.create({
+        title: "请求失败",
+        description: error.message,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <Box p={4}>
-      <VStack>
-        <Heading as="h1" size="xl">
-          Welcome to Chakra UI
+    <Box p={4} maxW="800px" mx="auto">
+      <VStack spacing={6} align="stretch">
+        <Heading as="h1" size="xl" textAlign="center">
+          AI 问答助手
         </Heading>
-        <Button onClick={() => setCount(count + 1)}>Click me</Button>
-        <Box>Count: {count}</Box>
+        
+        <Box>
+          <Text mb={2}>请输入你的问题：</Text>
+          <Input
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="例如：CnTable 出现数据重复行怎么办?"
+            size="lg"
+          />
+        </Box>
+
+        <Button
+          colorScheme="blue"
+          onClick={handleSubmit}
+          isLoading={isLoading}
+          loadingText="正在获取回答..."
+        >
+          获取回答
+        </Button>
+
+        {result && (
+          <Box>
+            <Text mb={2} fontWeight="bold">
+              回答：
+            </Text>
+            <Textarea
+              value={result}
+              readOnly
+              minH="200px"
+              p={4}
+              borderRadius="md"
+              bg="gray.50"
+              whiteSpace="pre-wrap"
+            />
+          </Box>
+        )}
       </VStack>
+      <Toaster />
     </Box>
   );
 }

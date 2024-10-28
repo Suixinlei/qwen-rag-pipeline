@@ -66,6 +66,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
     const data: DashScopeResponse = await response.json();
 
+    console.log('data', data);
     return new Response(
       JSON.stringify({
         text: data.output.text,
