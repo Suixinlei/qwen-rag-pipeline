@@ -26,8 +26,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       throw new Error('Prompt is required');
     }
 
+    const APP_ID = '2f2f0b3085bd4545a4dd546c9074c857';
+
     const response = await fetch(
-      'https://dashscope.aliyuncs.com/api/v1/apps/2f2f0b3085bd4545a4dd546c9074c857/completion',
+      `https://dashscope.aliyuncs.com/api/v1/apps/${APP_ID}/completion`,
       {
         method: 'POST',
         headers: {
