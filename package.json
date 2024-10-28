@@ -11,10 +11,15 @@
     "deploy": "npm run build && wrangler pages deploy ./dist"
   },
   "dependencies": {
+    "@chakra-ui/react": "^3.0.1",
+    "@emotion/react": "^11.13.0",
+    "next-themes": "^0.3.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-icons": "^5.3.0"
   },
   "devDependencies": {
+    "@chakra-ui/cli": "^3.0.1",
     "@cloudflare/workers-types": "^4.20241022.0",
     "@eslint/js": "^9.11.1",
     "@types/react": "^18.3.10",
@@ -27,6 +32,8 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.7.0",
     "vite": "^5.4.8",
+    "vite-tsconfig-paths": "^5.0.1",
     "wrangler": "^3.83.0"
-  }
+  },
+  "repository": "git@github.com:Suixinlei/qwen-rag-pipeline.git"
 }
