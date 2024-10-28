@@ -28,8 +28,7 @@ const callDashScope = async (prompt: string) => {
       throw new Error("API request failed");
     }
 
-    const data = await response.json();
-    return data;
+    return response;
   } catch (error) {
     console.error("Error:", error);
     throw error;
@@ -37,11 +36,9 @@ const callDashScope = async (prompt: string) => {
 };
 
 function App() {
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState("CnTable 出现数据重复行怎么办？");
   const [result, setResult] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  console.log('isLoading', isLoading);
 
   const handleSubmit = async () => {
     if (!prompt.trim()) {
@@ -51,11 +48,69 @@ function App() {
       });
       return;
     }
-
+  
     setIsLoading(true);
+    setResult("");
+  
     try {
       const response = await callDashScope(prompt);
-      setResult(response.text);
+  
+      if (!response.ok) throw new Error("API request failed");
+  
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = ''; // 用于存储未完成的数据
+  
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+  
+        // 将新的数据添加到buffer中
+        buffer += decoder.decode(value, { stream: true });
+  
+        // 处理buffer中的完整消息
+        const messages = buffer.split('\n\n');
+        buffer = messages.pop() || ''; // 保留最后一个可能不完整的消息
+  
+        for (const message of messages) {
+          if (!message.trim()) continue;
+  
+          // 解析消息中的各个字段
+          const messageLines = message.split('\n');
+          let eventData: { output: { text?: string } };
+  
+          for (const line of messageLines) {
+            if (line.startsWith('data:')) {
+              try {
+                eventData = JSON.parse(line.slice(5));
+                if (eventData?.output?.text) {
+                  setResult(prev => prev + eventData.output.text);
+                }
+              } catch (e) {
+                console.error('Error parsing JSON:', e);
+              }
+            }
+          }
+        }
+      }
+  
+      // 处理最后可能残留的数据
+      if (buffer.trim()) {
+        const messageLines = buffer.split('\n');
+        for (const line of messageLines) {
+          if (line.startsWith('data:')) {
+            try {
+              const eventData = JSON.parse(line.slice(5));
+              if (eventData?.output?.text) {
+                setResult(prev => prev + eventData.output.text);
+              }
+            } catch (e) {
+              console.error('Error parsing JSON:', e);
+            }
+          }
+        }
+      }
+  
     } catch (error: any) {
       toaster.create({
         title: "请求失败",
@@ -66,6 +121,7 @@ function App() {
       setIsLoading(false);
     }
   };
+  
 
   return (
     <Box p={4} maxW="800px" mx="auto">
@@ -90,7 +146,7 @@ function App() {
           获取回答
         </Button>
 
-        {result && (
+        {(result || isLoading) && (
           <Box>
             <Text mb={2} fontWeight="bold">
               回答：
