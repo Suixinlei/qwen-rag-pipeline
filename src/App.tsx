@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Box,
   VStack,
@@ -41,13 +41,13 @@ function App() {
   const [result, setResult] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  console.log('isLoading', isLoading);
+
   const handleSubmit = async () => {
     if (!prompt.trim()) {
       toaster.create({
         title: "请输入内容",
-        status: "warning",
         duration: 2000,
-        isClosable: true,
       });
       return;
     }
@@ -56,13 +56,11 @@ function App() {
     try {
       const response = await callDashScope(prompt);
       setResult(response.text);
-    } catch (error) {
+    } catch (error: any) {
       toaster.create({
         title: "请求失败",
         description: error.message,
-        status: "error",
         duration: 3000,
-        isClosable: true,
       });
     } finally {
       setIsLoading(false);
@@ -71,7 +69,7 @@ function App() {
 
   return (
     <Box p={4} maxW="800px" mx="auto">
-      <VStack spacing={6} align="stretch">
+      <VStack align="stretch">
         <Heading as="h1" size="xl" textAlign="center">
           AI 问答助手
         </Heading>
@@ -89,8 +87,6 @@ function App() {
         <Button
           colorScheme="blue"
           onClick={handleSubmit}
-          isLoading={isLoading}
-          loadingText="正在获取回答..."
         >
           获取回答
         </Button>
