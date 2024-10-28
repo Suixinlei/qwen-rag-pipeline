@@ -3,11 +3,11 @@ import {
   Box,
   VStack,
   Heading,
-  Button,
   Input,
   Text,
   Textarea,
 } from "@chakra-ui/react";
+import { Button } from "@/components/ui/button";
 import { Toaster, toaster } from "@/components/ui/toaster";
 import "./App.css";
 
@@ -85,7 +85,6 @@ function App() {
         </Box>
 
         <Button
-          colorScheme="blue"
           onClick={handleSubmit}
         >
           获取回答
