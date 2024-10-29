@@ -77,7 +77,7 @@ function App() {
   
           // 解析消息中的各个字段
           const messageLines = message.split('\n');
-          let eventData: { output: { text?: string } };
+          let eventData: { output: { text?: string }, type?: string, subject?: string };
   
           for (const line of messageLines) {
             if (line.startsWith('data:')) {
