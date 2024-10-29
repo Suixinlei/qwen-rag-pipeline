@@ -14,7 +14,7 @@ import "./App.css";
 const callDashScope = async (prompt: string) => {
   try {
     const response = await fetch(
-      `${process.env.API_URL}/api/llm/technical`,
+      `${process.env.API_URL}/api/rag`,
       {
         method: "POST",
         headers: {
@@ -83,7 +83,9 @@ function App() {
             if (line.startsWith('data:')) {
               try {
                 eventData = JSON.parse(line.slice(5));
-                if (eventData?.output?.text) {
+                if (eventData?.type === 'classification') {
+                  setResult(prev => prev + `问题类型：${eventData.subject}\n开始转接下一个 agent...\n`);
+                } else if (eventData?.output?.text) {
                   setResult(prev => prev + eventData.output.text);
                 }
               } catch (e) {
