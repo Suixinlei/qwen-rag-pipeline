@@ -14,7 +14,7 @@ import "./App.css";
 const callDashScope = async (prompt: string) => {
   try {
     const response = await fetch(
-      `${process.env.API_URL}/api/qwen`,
+      `${process.env.API_URL}/api/llm/technical`,
       {
         method: "POST",
         headers: {
