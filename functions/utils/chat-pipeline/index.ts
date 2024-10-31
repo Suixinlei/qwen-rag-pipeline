@@ -1,10 +1,5 @@
-export async function createDashScopeRequest(
-  appId: string,
-  apiKey: string,
-  prompt: string,
-  isPipeline?: boolean
-) {
-  return fetch(
+export async function createChatPipeline(appId: string, apiKey: string, prompt: string) {
+  const response = await fetch(
     `https://dashscope.aliyuncs.com/api/v1/apps/${appId}/completion`,
     {
       method: 'POST',
@@ -19,10 +14,17 @@ export async function createDashScopeRequest(
           prompt: prompt
         },
         parameters: {
-          has_thoughts: isPipeline,
+          has_thoughts: true,
           incremental_output: true,
         }
       })
     }
   );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`DashScope API error: ${error}`);
+  }
+
+  return response.body;
 }

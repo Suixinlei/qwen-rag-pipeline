@@ -7,11 +7,12 @@ export const CORS_HEADERS = {
 };
 
 
-export async function createWorker(appId: string, apiKey: string, prompt: string) {
+export async function createWorker(appId: string, apiKey: string, prompt: string, isPipeline?: boolean) {
   const response = await createDashScopeRequest(
     appId,
     apiKey,
-    prompt
+    prompt,
+    isPipeline
   );
 
   if (!response.ok) {

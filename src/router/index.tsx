@@ -2,6 +2,7 @@
 import { RouteObject, useRoutes } from 'react-router-dom';
 import RagPage from '@/pages/rag';
 import HomePage from '@/pages/home';
+import AssistantPage from '@/pages/assistant';
 
 const routes: RouteObject[] = [
   {
@@ -16,6 +17,10 @@ const routes: RouteObject[] = [
       {
         path: 'rag',
         element: <RagPage />
+      },
+      {
+        path: 'assistant',
+        element: <AssistantPage />
       }
     ]
   },
