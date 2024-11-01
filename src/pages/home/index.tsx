@@ -1,7 +1,7 @@
 import { Grid, GridItem, LinkBox } from '@chakra-ui/react';
-import { Box, Heading, LinkOverlay } from '@chakra-ui/react';
+import { Heading, LinkOverlay } from '@chakra-ui/react';
 
-function Card({ title, to }) {
+function Card({ title, to }: { title: string; to: string }) {
   return (
     <LinkBox as="article" p="5" borderWidth="1px" rounded="md">
       <Heading size="md" my="2">

@@ -1,7 +1,6 @@
 import * as React from 'react';
-import { Transform } from 'stream';
 
-const callDashScope = async (prompt: string) => {
+const callDashScope = async (prompt: string, session_id: string | null) => {
   try {
     const response = await fetch(
       `${process.env.API_URL}/api/chat`,
@@ -10,7 +9,7 @@ const callDashScope = async (prompt: string) => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, session_id }),
       }
     );
 
@@ -27,12 +26,10 @@ const callDashScope = async (prompt: string) => {
 
 
 export default function Assistant() {
+  const [sessionId, setSessionId] = React.useState<string | null>(null);
+  console.log(sessionId);
   React.useEffect(() => {
-    // init
-    if (!window.ChatAISDK) {
-      window.addEventListener('onChatAILoad', init);
-      return;
-    }
+    // @ts-ignore
     const client = new window.ChatAISDK();
     client.setConfig({
       uiConfig: {
@@ -51,29 +48,60 @@ export default function Assistant() {
       position: 'left'
     });
     client.onRequest = {
-      doChat: async (params) => {
-        console.log('params', params);
-        const response = await callDashScope(params.prompt);
+      doChat: async (params: { prompt: string }, onMessage: (message: any) => void) => {
+        const llmResponse = await callDashScope(params.prompt, sessionId);
+        
+        const reader = llmResponse.body?.getReader();
+        const decoder = new TextDecoder();
 
-        const transformStream = new Transform({
-          transform(chunk, encoding, callback) {
-            // 转换数据
-            const data = JSON.parse(chunk);
-            const transformed = {
-              ...data,
-              timestamp: new Date()
-            };
-            
-            // 推送转换后的数据
-            this.push(JSON.stringify(transformed));
-            callback();
+        if (!reader) {
+          return;
+        }
+
+        let buffer = ''; // 用于存储未完成的数据
+    
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          // 将新的数据添加到buffer中
+          buffer += decoder.decode(value, { stream: true });
+    
+          const messages = buffer.split('\n\n');
+          buffer = messages.pop() || ''; // 保留最后一个可能不完整的消息
+
+          for (const text of messages) {
+            if (text.startsWith('data: ')) {
+              const data = text.slice(6);
+
+              try {
+                const parsed = JSON.parse(data);
+                console.log('parsed', parsed);
+                if (parsed?.type === 'session_id') {
+                  setSessionId(parsed.session_id);
+                  continue;
+                }
+                onMessage(parsed);
+              } catch (e) {
+                console.error('Failed to parse JSON:', e);
+              }
+
+              if (data.includes('[done]')) {
+                console.log('---------done---------');
+                onMessage({
+                  success: true,
+                  done: true,
+                  data: { text: '' },
+                })
+                break;
+              }
+            }
           }
-        });
-        // 使用
-sourceStream
-.pipe(transformStream)
-.pipe(response);
-        return response.body.pipe(transformStream).pipe();
+          
+          
+        }
+
+        
       }
     }
   }, []);

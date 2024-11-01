@@ -1,4 +1,4 @@
-export async function createChatPipeline(appId: string, apiKey: string, prompt: string) {
+export async function createChatPipeline(appId: string, apiKey: string, prompt: string, session_id?: string) {
   const response = await fetch(
     `https://dashscope.aliyuncs.com/api/v1/apps/${appId}/completion`,
     {
@@ -11,7 +11,8 @@ export async function createChatPipeline(appId: string, apiKey: string, prompt: 
       },
       body: JSON.stringify({
         input: {
-          prompt: prompt
+          prompt,
+          session_id,
         },
         parameters: {
           has_thoughts: true,
