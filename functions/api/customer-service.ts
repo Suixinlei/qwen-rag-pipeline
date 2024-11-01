@@ -61,7 +61,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const processPromise = (async () => {
     try {
       // 1. 调用分类 API
-      const llmResponse = await createWorker('e2a2b9829c8646b0b7ce9c255d525817', context.env.DASHSCOPE_API_KEY, prompt);
+      const llmResponse = await createWorker('e2a2b9829c8646b0b7ce9c255d525817', context.env.DASHSCOPE_API_KEY, prompt, true);
       
       // 4. 读取 API 响应流并写入我们的输出流
       const reader = llmResponse.getReader();
