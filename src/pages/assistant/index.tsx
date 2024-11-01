@@ -1,6 +1,7 @@
 import * as React from 'react';
 
 const callDashScope = async (prompt: string, session_id: string | null) => {
+  console.log('请求参数', prompt, session_id);
   try {
     const response = await fetch(
       `${process.env.API_URL}/api/chat`,
@@ -24,10 +25,9 @@ const callDashScope = async (prompt: string, session_id: string | null) => {
   }
 };
 
+let sessionId: string | null = null;
 
 export default function Assistant() {
-  const [sessionId, setSessionId] = React.useState<string | null>(null);
-  console.log(sessionId);
   React.useEffect(() => {
     // @ts-ignore
     const client = new window.ChatAISDK();
@@ -66,26 +66,15 @@ export default function Assistant() {
 
           // 将新的数据添加到buffer中
           buffer += decoder.decode(value, { stream: true });
-    
+
           const messages = buffer.split('\n\n');
           buffer = messages.pop() || ''; // 保留最后一个可能不完整的消息
+
+
 
           for (const text of messages) {
             if (text.startsWith('data: ')) {
               const data = text.slice(6);
-
-              try {
-                const parsed = JSON.parse(data);
-                console.log('parsed', parsed);
-                if (parsed?.type === 'session_id') {
-                  setSessionId(parsed.session_id);
-                  continue;
-                }
-                onMessage(parsed);
-              } catch (e) {
-                console.error('Failed to parse JSON:', e);
-              }
-
               if (data.includes('[done]')) {
                 console.log('---------done---------');
                 onMessage({
@@ -95,13 +84,36 @@ export default function Assistant() {
                 })
                 break;
               }
+
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed?.type === 'session_id') {
+                  sessionId = parsed.session_id;
+                  continue;
+                }
+                if (parsed?.type === 'summary') {
+                  // 可以触发下一个 agent 了
+                  client.appendMsg({
+                    // 消息id，不传时前端将默认给一个随机id
+                    // id: '***',
+                    // 消息内容
+                    content: {
+                      text: '以下是准备触发下一个 agent 的参数: \n' + parsed.summary,
+                    },
+                    // 消息位置，支持 left | right
+                    position: 'left'
+                  });
+                  continue;
+                }
+                onMessage(parsed);
+              } catch (e) {
+                console.error('Failed to parse JSON:', e);
+              }
+
+              
             }
           }
-          
-          
         }
-
-        
       }
     }
   }, []);

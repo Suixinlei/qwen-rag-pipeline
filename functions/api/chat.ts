@@ -23,6 +23,7 @@ interface SourceData {
     }>;
     session_id: string;
     finish_reason: string;
+    text?: string;
   };
   usage: Record<string, any>;
   request_id: string;
@@ -80,9 +81,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     });
   }
 
-  let fullText = "";
-  let isError = false;
-  let firstSend = true;
+  let alreadySentSessionId = false;
   const startTime = Date.now();
   let firstTokenTime: number | null = null;
 
@@ -110,7 +109,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
               const jsonData: SourceData = JSON.parse(line.slice(5));
 
-              if (firstSend) {
+              console.log('jsonData', jsonData);
+
+              if (!session_id && !alreadySentSessionId) {
                 const session_id = jsonData.output.session_id;
 
                 controller.enqueue(
@@ -121,82 +122,82 @@ export const onRequest: PagesFunction<Env> = async (context) => {
                     })}\n\n`
                   )
                 );
-                firstSend = false;
+                alreadySentSessionId = true;
               }
 
               // 获取最后一条 executing 状态的思维链
-              const lastExecutingThought = jsonData.output.thoughts
-                .reverse()
-                .find((thought) => {
+              console.log("----------------------");
+              console.log("jsonData", jsonData.output);
+              console.log("----------------------");
+
+              if (Array.isArray(jsonData.output.thoughts)) {
+                const assistantThought = jsonData.output.thoughts
+                  .find((thought) => {
+                    try {
+                      const parsedResponse = JSON.parse(
+                        thought.response
+                      ) as NodeResponse;
+                      return parsedResponse.nodeId === "LLM_QNLs";
+                    } catch {
+                      return false;
+                    }
+                  });
+
+                if (assistantThought) {
                   try {
                     const parsedResponse = JSON.parse(
-                      thought.response
+                      assistantThought.response
                     ) as NodeResponse;
-                    return parsedResponse.nodeStatus === "executing";
-                  } catch {
-                    return false;
+                    if (parsedResponse.nodeResult) {
+                      const nodeResult = JSON.parse(
+                        parsedResponse.nodeResult
+                      ) as NodeResult;
+
+                      // 构造转换后的数据
+                      const transformed: string = JSON.stringify({
+                        data: {
+                          text: nodeResult.result,
+                        },
+                        success: true,
+                      });
+
+                      // 发送转换后的数据
+                      controller.enqueue(
+                        new TextEncoder().encode(`data: ${transformed}\n\n`)
+                      );
+                    }
+                  } catch (error) {
+                    console.error("Parse nodeResult error:", error);
                   }
-                });
+                }
+              }
 
-              if (lastExecutingThought) {
+              if (jsonData.output.text) {
                 try {
-                  const parsedResponse = JSON.parse(
-                    lastExecutingThought.response
-                  ) as NodeResponse;
-                  if (parsedResponse.nodeResult) {
-                    const nodeResult = JSON.parse(
-                      parsedResponse.nodeResult
-                    ) as NodeResult;
-
-                    // 累积完整文本
-                    fullText += nodeResult.result;
-
-                    // 构造转换后的数据
-                    const transformed: string = JSON.stringify({
-                      data: {
-                        text: nodeResult.result,
-                      },
-                      success: true,
-                    });
-
-                    // 发送转换后的数据
+                  const result = JSON.parse(jsonData.output.text);
+                  console.log('result', result);
+                  if (result.summary) {
                     controller.enqueue(
-                      new TextEncoder().encode(`data: ${transformed}\n\n`)
+                      new TextEncoder().encode(
+                        `data: ${JSON.stringify({
+                          type: 'summary',
+                          summary: result.summary,
+                        })}\n\n`
+                      )
                     );
                   }
-                } catch (error) {
-                  console.error("Parse nodeResult error:", error);
+                } catch {
+                  // ignore
                 }
               }
             }
           }
         }
       } catch (error) {
-        isError = true;
         console.error("Transform error:", error);
       }
     },
     flush(controller) {
-      if (!isError) {
-        // 发送汇总信息
-        const summary: SummaryData = {
-          data: {
-            text: fullText,
-            answerId: "12345",
-            firstTokenCostTime: firstTokenTime || 0,
-            debugInfo: {
-              raw: "",
-              deltaCostTime: Date.now() - startTime,
-            },
-          },
-          success: true,
-        };
-
-        controller.enqueue(
-          new TextEncoder().encode(`data: ${JSON.stringify(summary)}\n\n`)
-        );
-      }
-
       // 发送结束标记
       controller.enqueue(new TextEncoder().encode("data: [done]\n\n"));
     },
