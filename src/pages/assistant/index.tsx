@@ -88,6 +88,7 @@ class DashScopeWorkflowChat {
                     if (typeof thoughtOutput === "string") {
                       thoughtOutput = JSON.parse(thoughtOutput);
                     }
+                    console.log('thoughtOutput', thoughtOutput.result);
                     onMessage({
                       success: true,
                       data: {
@@ -227,14 +228,12 @@ export default function Assistant() {
         // 开始第二段请求
         if (llmResponse.includes('我已经确定完成，信息完整')) {
           client.appendMsg({
-            content: {
-              text: '已经确定完成，信息完整，开始第二段请求',
-            },
-            position: 'left',
+            type: 'system',
+            text: '已经确定完成，信息完整，开始第二段请求',
           });
           const flowResponse = await flowInstance.chat(llmResponse, {
-            // onMessage,
-            // listenIdArr: ['AppRefer_w8Xw', 'AppRefer_5rC5'],
+            onMessage,
+            listenIdArr: ['AppRefer_w8Xw', 'AppRefer_5rC5'],
           });
 
           console.log('flowResponse', flowResponse);
@@ -244,13 +243,10 @@ export default function Assistant() {
               text: flowResponse,
             },
             position: 'left',
+
           });
         }
       },
-    };
-
-    client.onReceiveMessageDone = (query) => {
-      console.log("onReceiveMessageDone", query);
     };
   }, []);
   return (
