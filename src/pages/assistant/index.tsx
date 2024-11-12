@@ -1,121 +1,257 @@
-import * as React from 'react';
+import * as React from "react";
 
-const callDashScope = async (prompt: string, session_id: string | null) => {
-  console.log('请求参数', prompt, session_id);
-  try {
-    const response = await fetch(
-      `${process.env.API_URL}/api/chat`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ prompt, session_id }),
-      }
-    );
+interface IDashScopeWorkflowChatChatParam {
+  onMessage: (message: any) => void;
+  listenIdArr: string[];
+}
+
+interface IDashScopeAgentChatChatParam {
+  onMessage: (message: any) => void;
+}
+
+class DashScopeWorkflowChat {
+  apiUrl: string;
+  sessionId: string;
+
+  constructor(url: string) {
+    this.apiUrl = url;
+    this.sessionId = "";
+  }
+
+  async chat(prompt: string, chatParam: IDashScopeWorkflowChatChatParam) {
+    const { onMessage = () => {}, listenIdArr = [] } = chatParam;
+    const response = await fetch(this.apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt,
+        session_id: this.sessionId,
+      }),
+    });
 
     if (!response.ok) {
       throw new Error("API request failed");
     }
 
-    return response;
-  } catch (error) {
-    console.error("Error:", error);
-    throw error;
-  }
-};
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
 
-let sessionId: string | null = null;
+    if (!reader) {
+      return;
+    }
+
+    let buffer = ""; // 用于存储未完成的数据
+    let outputText = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        onMessage({
+          success: true,
+          done: true,
+          data: { text: "" },
+        });
+        // 读取完毕
+        break;
+      }
+
+      // 将新的数据添加到buffer中
+      buffer += decoder.decode(value, { stream: true });
+
+      const messages = buffer.split("\n");
+      buffer = messages.pop() || ""; // 保留最后一个可能不完整的消息
+
+      for (const text of messages) {
+        if (text.startsWith("data:")) {
+          const data = text.slice(5);
+
+          try {
+            const parsed = JSON.parse(data);
+            if (!this.sessionId && parsed?.output?.session_id) {
+              this.sessionId = parsed.output.session_id;
+            }
+
+            // 过程流式输出
+            if (Array.isArray(parsed.output.thoughts)) {
+              for (const thought of parsed.output.thoughts) {
+                // 解析 thought
+                try {
+                  const thoughtData = JSON.parse(thought.response);
+                  console.log("thoughtData", thoughtData);
+                  if (
+                    listenIdArr.includes(thoughtData.nodeId) &&
+                    thoughtData.nodeStatus === "executing"
+                  ) {
+                    let thoughtOutput = thoughtData.output;
+                    if (typeof thoughtOutput === "string") {
+                      thoughtOutput = JSON.parse(thoughtOutput);
+                    }
+                    onMessage({
+                      success: true,
+                      data: {
+                        text: thoughtOutput.result,
+                      },
+                    });
+                  }
+                } catch (e) {
+                  console.error("Failed to parse thought:", e);
+                }
+              }
+            }
+
+            if (parsed.output.finish_reason === "stop" && parsed.output.text) {
+              outputText = parsed.output.text;
+              break;
+            }
+          } catch (e) {
+            console.error("Failed to parse JSON:", e);
+          }
+        }
+      }
+    }
+
+    return outputText;
+  }
+}
+
+class DashScopeAgentChat {
+  apiUrl: string;
+  sessionId: string;
+
+  constructor(url: string) {
+    this.apiUrl = url;
+    this.sessionId = "";
+  }
+
+  async chat(prompt: string, chatParam: IDashScopeAgentChatChatParam): Promise<string> {
+    const { onMessage } = chatParam;
+    const response = await fetch(this.apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt,
+        session_id: this.sessionId,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("API request failed");
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) {
+      return '';
+    }
+
+    let buffer = ""; // 用于存储未完成的数据
+    let outputText = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        onMessage({
+          success: true,
+          done: true,
+          data: { text: "" },
+        });
+        // 读取完毕
+        break;
+      }
+
+      // 将新的数据添加到buffer中
+      buffer += decoder.decode(value, { stream: true });
+
+      const messages = buffer.split("\n");
+      buffer = messages.pop() || ""; // 保留最后一个可能不完整的消息
+
+      for (const text of messages) {
+        if (text.startsWith("data:")) {
+          const data = text.slice(5);
+
+          try {
+            const parsed = JSON.parse(data);
+            if (!this.sessionId && parsed?.output?.session_id) {
+              this.sessionId = parsed.output.session_id;
+            }
+
+            if (parsed.output.text) {
+              onMessage({
+                success: true,
+                data: {
+                  text: parsed.output.text,
+                },
+              });
+              outputText += parsed.output.text;
+            }
+          } catch (e) {
+            console.error("Failed to parse JSON:", e);
+          }
+        }
+      }
+    }
+
+    return outputText;
+  }
+}
 
 export default function Assistant() {
   React.useEffect(() => {
     // @ts-ignore
     const client = new window.ChatAISDK();
+    const chatInstance = new DashScopeAgentChat(
+      `${process.env.API_URL}/api/agent`
+    );
+    const flowInstance = new DashScopeWorkflowChat(
+      `${process.env.API_URL}/api/flow`
+    );
     client.setConfig({
       uiConfig: {
-        stream: true
-      }
-    });
-    // 前端手动添加一条消息
-    client.appendMsg({
-      // 消息id，不传时前端将默认给一个随机id
-      // id: '***',
-      // 消息内容
-      content: {
-        text: '随便问问题',
+        stream: true,
       },
-      // 消息位置，支持 left | right
-      position: 'left'
     });
     client.onRequest = {
-      doChat: async (params: { prompt: string }, onMessage: (message: any) => void) => {
-        const llmResponse = await callDashScope(params.prompt, sessionId);
-        
-        const reader = llmResponse.body?.getReader();
-        const decoder = new TextDecoder();
+      doChat: async (
+        params: { prompt: string },
+        onMessage: (message: any) => void
+      ) => {
+        const llmResponse = await chatInstance.chat(params.prompt, {
+          onMessage,
+        });
 
-        if (!reader) {
-          return;
+        // 开始第二段请求
+        if (llmResponse.includes('我已经确定完成，信息完整')) {
+          client.appendMsg({
+            content: {
+              text: '已经确定完成，信息完整，开始第二段请求',
+            },
+            position: 'left',
+          });
+          const flowResponse = await flowInstance.chat(llmResponse, {
+            // onMessage,
+            // listenIdArr: ['AppRefer_w8Xw', 'AppRefer_5rC5'],
+          });
+
+          console.log('flowResponse', flowResponse);
+
+          client.appendMsg({
+            content: {
+              text: flowResponse,
+            },
+            position: 'left',
+          });
         }
+      },
+    };
 
-        let buffer = ''; // 用于存储未完成的数据
-    
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-
-          // 将新的数据添加到buffer中
-          buffer += decoder.decode(value, { stream: true });
-
-          const messages = buffer.split('\n\n');
-          buffer = messages.pop() || ''; // 保留最后一个可能不完整的消息
-
-
-
-          for (const text of messages) {
-            if (text.startsWith('data: ')) {
-              const data = text.slice(6);
-              if (data.includes('[done]')) {
-                console.log('---------done---------');
-                onMessage({
-                  success: true,
-                  done: true,
-                  data: { text: '' },
-                })
-                break;
-              }
-
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed?.type === 'session_id') {
-                  sessionId = parsed.session_id;
-                  continue;
-                }
-                if (parsed?.type === 'summary') {
-                  // 可以触发下一个 agent 了
-                  client.appendMsg({
-                    // 消息id，不传时前端将默认给一个随机id
-                    // id: '***',
-                    // 消息内容
-                    content: {
-                      text: '以下是准备触发下一个 agent 的参数: \n' + parsed.summary,
-                    },
-                    // 消息位置，支持 left | right
-                    position: 'left'
-                  });
-                  continue;
-                }
-                onMessage(parsed);
-              } catch (e) {
-                console.error('Failed to parse JSON:', e);
-              }
-
-              
-            }
-          }
-        }
-      }
-    }
+    client.onReceiveMessageDone = (query) => {
+      console.log("onReceiveMessageDone", query);
+    };
   }, []);
   return (
     <div
@@ -124,8 +260,6 @@ export default function Assistant() {
         width: "100vw",
         height: "100vh",
       }}
-    >
-
-    </div>
+    ></div>
   );
 }
