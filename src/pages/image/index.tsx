@@ -1,11 +1,9 @@
 import { useState } from "react";
 import {
   Upload,
-  Card,
   Typography,
   Space,
   Alert,
-  Spin,
   Layout,
   theme,
   message,
@@ -13,14 +11,15 @@ import {
 import { InboxOutlined } from "@ant-design/icons";
 import type { UploadProps } from "antd";
 import type { RcFile } from "antd/es/upload/interface";
+import AnalysisCard from './analysis-card';
 
 const { Dragger } = Upload;
-const { Title, Paragraph } = Typography;
+const { Title } = Typography;
 const { Content } = Layout;
 
 export default function ImageAnalysisPage() {
   const [imageUrl, setImageUrl] = useState<string>("");
-  const [analysis, setAnalysis] = useState<string>("");
+  const [analysis, setAnalysis] = useState<string>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const { token } = theme.useToken();
@@ -33,9 +32,9 @@ export default function ImageAnalysisPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           image: url,
-         }),
+        }),
       });
 
       if (!response.ok) {
@@ -43,7 +42,7 @@ export default function ImageAnalysisPage() {
       }
 
       const data = await response.json();
-      setAnalysis(data.analysis);
+      setAnalysis(data);
       message.success("图片分析完成！");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "处理过程中发生错误";
@@ -103,17 +102,22 @@ export default function ImageAnalysisPage() {
               图片吐槽生成器
             </Title>
 
-            <Dragger {...uploadProps} disabled={loading}>
-              <p className="ant-upload-drag-icon">
-                <InboxOutlined />
-              </p>
-              <p className="ant-upload-text">
-                点击或拖拽图片到这里上传
-              </p>
-              <p className="ant-upload-hint">
-                支持单个图片上传，图片大小不超过 5MB
-              </p>
-            </Dragger>
+            {
+              !imageUrl && (
+                <Dragger {...uploadProps} disabled={loading}>
+                  <p className="ant-upload-drag-icon">
+                    <InboxOutlined />
+                  </p>
+                  <p className="ant-upload-text">
+                    点击或拖拽图片到这里上传
+                  </p>
+                  <p className="ant-upload-hint">
+                    支持单个图片上传，图片大小不超过 5MB
+                  </p>
+                </Dragger>
+              )
+            }
+
 
             {error && (
               <Alert
@@ -126,39 +130,14 @@ export default function ImageAnalysisPage() {
               />
             )}
 
-            {loading && (
-              <div style={{ textAlign: "center", padding: "20px" }}>
-                <Spin tip="处理中..." />
-              </div>
-            )}
+
 
             {imageUrl && (
-              <Card>
-                <img
-                  src={imageUrl}
-                  alt="上传的图片"
-                  style={{
-                    width: "100%",
-                    maxHeight: "400px",
-                    objectFit: "contain",
-                  }}
-                />
-                {analysis && (
-                  <div style={{ marginTop: 16 }}>
-                    <Title level={4}>AI 吐槽：</Title>
-                    <Card
-                      size="small"
-                      style={{
-                        background: token.colorBgTextHover,
-                      }}
-                    >
-                      <Paragraph style={{ whiteSpace: "pre-wrap", margin: 0 }}>
-                        {analysis}
-                      </Paragraph>
-                    </Card>
-                  </div>
-                )}
-              </Card>
+              <AnalysisCard
+                imageUrl={imageUrl}
+                analysis={analysis}
+                loading={loading}
+              />
             )}
           </Space>
         </div>

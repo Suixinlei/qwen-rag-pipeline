@@ -1,9 +1,21 @@
 import { CORS_HEADERS } from "../utils/constant";
 
-// 生成 UUID v4  
-function uuidv4() {
-  return crypto.randomUUID();
-}
+const bucket = 'kouka-static-source';  
+const region = 'oss-cn-hangzhou';
+const endpoint = `${bucket}.${region}.aliyuncs.com`;
+
+async function generateSignedUrl(objectKey, env) {
+  const expiration = Math.floor(Date.now() / 1000) + 3600; // 1小时有效期  
+  const resource = `/${bucket}/${objectKey}`;  
+  
+  const stringToSign = `GET\n\n\n${expiration}\n${resource}`;  
+  const signature = await calculateSignature(stringToSign, env.OSS_ACCESS_KEY_SECRET);  
+  
+  const signedUrl = `https://${endpoint}/${objectKey}?OSSAccessKeyId=${env.OSS_ACCESS_KEY_ID}&Expires=${expiration}&Signature=${encodeURIComponent(signature)}`;  
+  
+  return signedUrl;
+}  
+
 
 async function generateHash(file) {  
   const buffer = await file.arrayBuffer();  
@@ -61,10 +73,8 @@ export const onRequest = async (context) => {
   }
 
   try {
-    // 固定的 OSS 配置  
-    const bucket = 'kouka-static-source';
-    const region = 'oss-cn-hangzhou';
-    const endpoint = `${bucket}.${region}.aliyuncs.com`;
+    // 固定的 OSS 配置
+    
 
     // 从环境变量获取密钥  
     const accessKeyId = env.OSS_ACCESS_KEY_ID;
@@ -126,10 +136,13 @@ export const onRequest = async (context) => {
       throw new Error(`OSS upload failed: ${await ossResponse.text()}`);
     }
 
+    // 生成临时 URL
+    const signedUrl = await generateSignedUrl(objectKey, env);
+
     // 返回上传成功的图片 URL  
     return new Response(JSON.stringify({
       success: true,
-      url: `https://${endpoint}/${objectKey}`
+      url: signedUrl,
     }), {
       headers: {
         'Content-Type': 'application/json',
