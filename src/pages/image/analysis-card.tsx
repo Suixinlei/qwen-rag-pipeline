@@ -1,10 +1,15 @@
-import * as React from 'react';
 import { Card, Typography, Image, Empty } from 'antd';
 import { FileImageOutlined } from '@ant-design/icons';
-
+import { IAnalysis } from './types';
 const { Title, Paragraph } = Typography;
 
-const AnalysisCard = (props) => {
+interface AnalysisCardProps {
+  analysis?: IAnalysis;
+  imageUrl?: string;
+  loading?: boolean;
+}
+
+const AnalysisCard = (props: AnalysisCardProps) => {
   console.log('props', props);
   const { analysis, imageUrl, loading } = props;
   const { summary, core_critique } = analysis?.content?.analysis || {};

@@ -12,6 +12,7 @@ import { InboxOutlined } from "@ant-design/icons";
 import type { UploadProps } from "antd";
 import type { RcFile } from "antd/es/upload/interface";
 import AnalysisCard from './analysis-card';
+import { IAnalysis } from './types';
 
 const { Dragger } = Upload;
 const { Title } = Typography;
@@ -19,7 +20,7 @@ const { Content } = Layout;
 
 export default function ImageAnalysisPage() {
   const [imageUrl, setImageUrl] = useState<string>("");
-  const [analysis, setAnalysis] = useState<string>({});
+  const [analysis, setAnalysis] = useState<IAnalysis>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const { token } = theme.useToken();
