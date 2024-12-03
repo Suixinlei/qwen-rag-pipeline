@@ -1,6 +1,7 @@
 // src/router/index.tsx
 import { RouteObject, useRoutes } from 'react-router-dom';
 import ImagePage from '@/pages/image';
+import HomePage from '@/pages/home';
 
 const routes: RouteObject[] = [
   {
@@ -8,6 +9,10 @@ const routes: RouteObject[] = [
     // Layout
     // element: <Layout />,
     children: [
+      {
+        path: '/',
+        element: <HomePage />
+      },
       {
         path: 'image',
         element: <ImagePage />
