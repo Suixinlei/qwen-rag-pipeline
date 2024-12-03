@@ -95,7 +95,7 @@ export default function ImageAnalysisPage() {
   };
 
   return (
-    <Layout style={{ minHeight: "100vh", background: token.colorBgContainer }}>
+    <Layout style={{ background: token.colorBgContainer }}>
       <Content style={{ padding: "24px" }}>
         <div style={{ maxWidth: 800, margin: "0 auto" }}>
           <Space direction="vertical" size="large" style={{ width: "100%" }}>
